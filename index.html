@@ -75,6 +75,11 @@
   .money span{ color:var(--muted); font-size:13px; }
   .money input{ border:none; outline:none; width:100%; min-width:0; padding:10px 6px; font:600 15px var(--body); color:var(--ink); background:transparent; font-variant-numeric:tabular-nums; }
   .money:focus-within{ border-color:var(--teal); }
+  .fixed-price{ display:flex; flex-direction:column; gap:4px; border:1px solid var(--line); border-radius:10px; padding:10px 12px; border-left-width:4px; background:#fff; }
+  .fixed-price[data-l="bronze"]{ border-left-color:var(--bronze); } .fixed-price[data-l="prata"]{ border-left-color:var(--prata); }
+  .fixed-price[data-l="ouro"]{ border-left-color:var(--ouro); }     .fixed-price[data-l="diamante"]{ border-left-color:var(--diam); }
+  .fp-label{ font-size:12px; font-weight:600; color:var(--muted); }
+  .fp-value{ font:700 18px var(--display); font-variant-numeric:tabular-nums; }
   .row2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; margin-top:12px; }
   @media (max-width:480px){ .row2{ grid-template-columns:minmax(0,1fr); } }
 
@@ -146,7 +151,7 @@
 
       <section class="card" aria-labelledby="h-preco">
         <h2 id="h-preco">2. Preço por vaga</h2>
-        <p class="hint">Valor de cada vaga, por assinante, por mês. Preço de tabela: Bronze R$ 5, Prata R$ 10, Ouro R$ 16, Diamante R$ 23. Se você alterar, o valor fica salvo só neste navegador; "Limpar" volta para a tabela.</p>
+        <p class="hint">Preço fixo de tabela de cada vaga, por assinante, por mês. Não pode ser alterado no simulador.</p>
         <div class="prices" id="prices"></div>
         <div class="row2">
           <label class="field" for="base">Base de assinantes
@@ -237,14 +242,14 @@
 
   // ---------- Armazenamento local (só conveniência) ----------
   var KEY = 'aya-sim-vagas-v2';
-  var DEFAULT_PRICES = { bronze:'5,00', prata:'10,00', ouro:'16,00', diamante:'23,00' };
+  // Preço fixo por vaga (R$ por assinante/mês). Alterar somente aqui, no código.
+  var PRICES = Object.freeze({ bronze:5, prata:10, ouro:16, diamante:23 });
   function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; } }
-  function persist(){ try { localStorage.setItem(KEY, JSON.stringify({ prices:state.prices, base:state.base, desc:state.desc, saved:state.saved })); } catch(e){} }
+  function persist(){ try { localStorage.setItem(KEY, JSON.stringify({ base:state.base, desc:state.desc, saved:state.saved })); } catch(e){} }
 
   var stored = load();
   var state = {
     slots: [],                       // [{ level, cat }]
-    prices: Object.assign({}, DEFAULT_PRICES, stored.prices || {}),
     base: stored.base || '',
     desc: stored.desc || '',
     saved: Array.isArray(stored.saved) ? stored.saved : []
@@ -329,7 +334,7 @@
     var c = counts(), perUser = 0, missing = [];
     LEVELS.forEach(function(l){
       if (!c[l.id]) return;
-      var p = parseNum(state.prices[l.id]);
+      var p = PRICES[l.id];
       if (isNaN(p)) missing.push(l.name); else perUser += p * c[l.id];
     });
     var d = parseNum(state.desc); if (isNaN(d)) d = 0; d = Math.min(d, 100);
@@ -372,13 +377,10 @@
   function renderPriceInputs(){
     var box = document.getElementById('prices');
     LEVELS.forEach(function(l){
-      var lab = el('label', { 'class':'field', 'for':'price-' + l.id }, 'Vaga ' + l.name);
-      var m = el('span', { 'class':'money' });
-      m.appendChild(el('span', null, 'R$'));
-      var inp = el('input', { id:'price-' + l.id, inputmode:'decimal', placeholder:'a definir', autocomplete:'off' });
-      inp.value = state.prices[l.id] || '';
-      inp.addEventListener('input', function(){ state.prices[l.id] = inp.value.slice(0,20); persist(); renderSummary(); });
-      m.appendChild(inp); lab.appendChild(m); box.appendChild(lab);
+      var card = el('div', { 'class':'fixed-price', 'data-l':l.id });
+      card.appendChild(el('span', { 'class':'fp-label' }, 'Vaga ' + l.name));
+      card.appendChild(el('span', { 'class':'fp-value', id:'price-' + l.id }, brl.format(PRICES[l.id])));
+      box.appendChild(card);
     });
     var base = document.getElementById('base'), desc = document.getElementById('desc');
     base.value = state.base; desc.value = state.desc;
@@ -534,10 +536,7 @@
     persist(); renderSaved(); toast('Oferta salva para comparação.');
   });
   document.getElementById('resetBtn').addEventListener('click', function(){
-    state.prices = Object.assign({}, DEFAULT_PRICES);
-    LEVELS.forEach(function(l){ document.getElementById('price-' + l.id).value = state.prices[l.id]; });
-    persist();
-    applyCounts({ bronze:1, prata:0, ouro:0, diamante:0 }); toast('Oferta reiniciada com 1 vaga Bronze e preços de tabela.');
+    applyCounts({ bronze:1, prata:0, ouro:0, diamante:0 }); toast('Oferta reiniciada com 1 vaga Bronze.');
   });
 
   // ---------- Início: exemplo 4 Prata + 2 Ouro ----------
