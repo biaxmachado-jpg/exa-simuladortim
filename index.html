@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Layout: coluna de montagem (vagas + categorias) à esquerda, resumo fixo à direita. Mesma paleta do simulador antigo. */
+  /* Layout: coluna de montagem (slots + categorias) à esquerda, resumo fixo à direita. Mesma paleta do simulador antigo. */
   :root{
     --bg:#f7f9fb; --card:#ffffff; --ink:#17273b; --muted:#62778c;
     --teal:#1d5b96; --teal-dark:#14456f; --teal-soft:#e4edf8; --line:#dfe6ee;
@@ -83,7 +83,7 @@
   .row2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; margin-top:12px; }
   @media (max-width:480px){ .row2{ grid-template-columns:minmax(0,1fr); } }
 
-  /* Vagas / categorias */
+  /* Slots / categorias */
   .slot-group{ margin-top:14px; }
   .slot-group h3{ font:700 13px var(--display); margin:0 0 8px; text-transform:uppercase; letter-spacing:.05em; }
   .slots{ display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:8px; }
@@ -95,7 +95,10 @@
   .empty{ color:var(--muted); font-style:italic; font-size:13px; }
 
   /* Resumo */
-  .summary{ position:sticky; top:16px; border:2px solid var(--teal); }
+  .side{ position:sticky; top:16px; display:flex; flex-direction:column; gap:12px; min-width:0; }
+  @media (max-width:900px){ .side{ position:static; } }
+  .summary{ border:2px solid var(--teal); }
+  a.btn.acervo{ display:block; text-align:center; text-decoration:none; padding:13px 14px; font-size:14px; }
   .tag{ display:inline-block; background:var(--teal-soft); color:var(--teal); font-size:11px; font-weight:700; letter-spacing:.06em; padding:4px 10px; border-radius:999px; margin-bottom:10px; text-transform:uppercase; }
   .combo{ font:700 22px var(--display); margin:0 0 4px; line-height:1.25; }
   .kv{ display:flex; justify-content:space-between; align-items:baseline; gap:12px; padding:9px 0; border-top:1px solid var(--line); }
@@ -127,62 +130,69 @@
 <body>
 <div class="wrap">
   <h1>Simulador AYA</h1>
-  <p class="lead">Monte a oferta da operadora em <b>vagas por nível</b>. Cada vaga dá acesso a uma categoria com a profundidade daquele nível. A operadora define as categorias de entrada e o assinante troca o que quiser, todo mês.</p>
+  <p class="lead">Monte a oferta da operadora em <b>slots por nível</b>. Cada slot dá acesso a uma categoria com a profundidade daquele nível. A operadora define as categorias de entrada e o assinante troca o que quiser, todo mês.</p>
   <ul class="rules" aria-label="Regras da oferta">
-    <li>Mínimo 1 vaga, máximo 14</li>
-    <li>1 vaga = 1 categoria</li>
-    <li>Jornais ocupam vaga como qualquer categoria</li>
+    <li>Mínimo 1 slot, máximo 14</li>
+    <li>1 slot = 1 categoria</li>
+    <li>Jornais ocupam slot como qualquer categoria</li>
     <li>Categoria não se repete na mesma oferta</li>
     <li>Troca mensal, sempre dentro do mesmo nível</li>
   </ul>
 
   <div class="grid">
     <div class="col">
-      <section class="card" aria-labelledby="h-vagas">
-        <h2 id="h-vagas">1. Quantas vagas de cada nível?</h2>
-        <p class="hint">Os níveis são cumulativos: uma vaga Ouro inclui todo o conteúdo Bronze e Prata daquela categoria.</p>
+      <section class="card" aria-labelledby="h-slots">
+        <h2 id="h-slots">1. Quantos slots de cada nível?</h2>
+        <p class="hint">Os níveis são cumulativos: um slot Ouro inclui todo o conteúdo Bronze e Prata daquela categoria.</p>
         <div class="presets" id="presets"></div>
         <div class="levels" id="levels"></div>
         <div class="meter">
-          <div class="meter-bar" id="meterBar" role="img" aria-label="Vagas usadas"></div>
-          <div class="meter-label"><span><b id="usedSlots" class="num">0</b> de 14 vagas</span><span id="freeSlots" class="num"></span></div>
+          <div class="meter-bar" id="meterBar" role="img" aria-label="Slots usados"></div>
+          <div class="meter-label"><span><b id="usedSlots" class="num">0</b> de 14 slots</span><span id="freeSlots" class="num"></span></div>
         </div>
       </section>
 
       <section class="card" aria-labelledby="h-preco">
-        <h2 id="h-preco">2. Preço por vaga</h2>
-        <p class="hint">Preço fixo de tabela de cada vaga, por assinante, por mês. Não pode ser alterado no simulador.</p>
+        <h2 id="h-preco">2. Valor de face - fatura cliente</h2>
+        <p class="hint">Valor fixo de tabela de cada slot, por assinante, por mês. Não pode ser alterado no simulador.</p>
         <div class="prices" id="prices"></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-cat">
+        <h2 id="h-cat">3. Categorias de entrada</h2>
+        <p class="hint">A operadora escolhe em quais categorias o assinante começa. Depois, ele pode trocar qualquer slot uma vez por mês por outra categoria do mesmo nível que ainda não esteja na oferta.</p>
+        <div id="slotGroups"></div>
+      </section>
+
+      <section class="card" aria-labelledby="h-venda">
+        <h2 id="h-venda">4. Valor de venda</h2>
+        <p class="hint">Informe a base de clientes e o desconto negociado. O valor de venda é o valor de face com o desconto aplicado.</p>
         <div class="row2">
-          <label class="field" for="base">Base de assinantes
+          <label class="field" for="base">Base de clientes
             <span class="money"><input id="base" inputmode="numeric" placeholder="ex.: 100.000" autocomplete="off"></span>
           </label>
-          <label class="field" for="desc">Desconto comercial (%)
+          <label class="field" for="desc">Desconto (%)
             <span class="money"><input id="desc" inputmode="decimal" placeholder="0" autocomplete="off"><span>%</span></span>
           </label>
         </div>
       </section>
 
-      <section class="card" aria-labelledby="h-cat">
-        <h2 id="h-cat">3. Categorias de entrada</h2>
-        <p class="hint">A operadora escolhe em quais categorias o assinante começa. Depois, ele pode trocar qualquer vaga uma vez por mês por outra categoria do mesmo nível que ainda não esteja na oferta.</p>
-        <div id="slotGroups"></div>
-      </section>
-
       <section class="card" aria-labelledby="h-salvas">
         <h2 id="h-salvas">Ofertas salvas para comparar</h2>
         <div class="table-wrap"><table id="savedTable"></table></div>
-        <p class="note">Faixa de títulos: Bronze e Diamante são valores exatos por categoria. Para Prata e Ouro das categorias temáticas, o deck traz só o total do nível. Nessas vagas o simulador mostra a faixa entre o Bronze e o Diamante da categoria. Apostilas não entram na conta. Quantidades e títulos podem mudar, com aviso prévio.</p>
+        <p class="note">Faixa de títulos: Bronze e Diamante são valores exatos por categoria. Para Prata e Ouro das categorias temáticas, o deck traz só o total do nível. Nesses slots o simulador mostra a faixa entre o Bronze e o Diamante da categoria. Apostilas não entram na conta. Quantidades e títulos podem mudar, com aviso prévio.</p>
       </section>
     </div>
 
+    <div class="side">
     <aside class="card summary" aria-labelledby="h-resumo">
       <span class="tag">Resumo da oferta</span>
       <p class="combo" id="combo" aria-live="polite"></p>
       <p class="hint" id="comboSub"></p>
-      <div class="kv"><span class="k">Preço por assinante / mês</span><span class="v big" id="pUser"></span></div>
-      <div class="kv"><span class="k">Receita mensal</span><span class="v" id="pMonth"></span></div>
-      <div class="kv"><span class="k">Receita anual</span><span class="v" id="pYear"></span></div>
+      <div class="kv"><span class="k">Valor de face por assinante / mês</span><span class="v" id="pFace"></span></div>
+      <div class="kv"><span class="k">Valor de venda por assinante / mês</span><span class="v big" id="pSale"></span></div>
+      <div class="kv"><span class="k">Receita total / mês</span><span class="v" id="pTotal"></span></div>
+      <div class="kv"><span class="k">Receita com desconto / mês</span><span class="v" id="pDisc"></span></div>
       <div class="kv"><span class="k">Títulos para o assinante</span><span class="v" id="titles"></span></div>
       <div class="kv"><span class="k">Jornais incluídos</span><span class="v" id="news"></span></div>
       <div class="actions">
@@ -193,6 +203,8 @@
       <div class="toast" id="toast" role="status"></div>
       <div id="copyFallback"></div>
     </aside>
+    <a class="btn primary acervo" href="https://docs.google.com/presentation/d/1xbsSrDqLDbZJp1CkyXBpliTjO4ILDwe5uicRTQjgX24/edit?slide=id.p1#slide=id.p1" target="_blank" rel="noopener noreferrer">Link para o Acervo</a>
+    </div>
   </div>
 </div>
 
@@ -241,8 +253,8 @@
   ];
 
   // ---------- Armazenamento local (só conveniência) ----------
-  var KEY = 'aya-sim-vagas-v2';
-  // Preço fixo por vaga (R$ por assinante/mês). Alterar somente aqui, no código.
+  var KEY = 'aya-sim-v3';
+  // Valor de face fixo por slot (R$ por assinante/mês). Alterar somente aqui, no código.
   var PRICES = Object.freeze({ bronze:5, prata:10, ouro:16, diamante:23 });
   function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; } }
   function persist(){ try { localStorage.setItem(KEY, JSON.stringify({ base:state.base, desc:state.desc, saved:state.saved })); } catch(e){} }
@@ -331,21 +343,17 @@
   function sortSlots(){ state.slots.sort(function(a,b){ return LV[b.level].idx - LV[a.level].idx; }); }
 
   function calc(){
-    var c = counts(), perUser = 0, missing = [];
-    LEVELS.forEach(function(l){
-      if (!c[l.id]) return;
-      var p = PRICES[l.id];
-      if (isNaN(p)) missing.push(l.name); else perUser += p * c[l.id];
-    });
+    var c = counts(), face = 0;
+    LEVELS.forEach(function(l){ face += PRICES[l.id] * c[l.id]; });
     var d = parseNum(state.desc); if (isNaN(d)) d = 0; d = Math.min(d, 100);
-    perUser = perUser * (1 - d / 100);
-    var base = parseNum(state.base);
+    var sale = face * (1 - d / 100);
+    var base = parseNum(state.base); if (isNaN(base)) base = 0;
     var lo = 0, hi = 0, news = [];
     state.slots.forEach(function(s){
       var r = titleRange(s.cat, s.level); lo += r[0]; hi += r[1];
       if (CAT[s.cat].jornal) news = news.concat(CAT[s.cat].list[s.level]);
     });
-    return { c:c, perUser:perUser, missing:missing, desc:d, base:base, lo:lo, hi:hi, news:news };
+    return { c:c, face:face, sale:sale, desc:d, base:base, total:face * base, totalDisc:sale * base, lo:lo, hi:hi, news:news };
   }
 
   // ---------- Render ----------
@@ -364,9 +372,9 @@
       card.appendChild(el('div', { 'class':'name' }, l.name));
       card.appendChild(el('div', { 'class':'meta' }, l.meta));
       var st = el('div', { 'class':'stepper' });
-      var minus = el('button', { type:'button', 'aria-label':'Remover vaga ' + l.name, id:'minus-' + l.id }, '−');
+      var minus = el('button', { type:'button', 'aria-label':'Remover slot ' + l.name, id:'minus-' + l.id }, '−');
       var out = el('output', { id:'count-' + l.id, 'aria-live':'polite' }, '0');
-      var plus = el('button', { type:'button', 'aria-label':'Adicionar vaga ' + l.name, id:'plus-' + l.id }, '+');
+      var plus = el('button', { type:'button', 'aria-label':'Adicionar slot ' + l.name, id:'plus-' + l.id }, '+');
       minus.addEventListener('click', function(){ setCount(l.id, counts()[l.id] - 1); });
       plus.addEventListener('click', function(){ setCount(l.id, counts()[l.id] + 1); });
       st.appendChild(minus); st.appendChild(out); st.appendChild(plus);
@@ -378,7 +386,7 @@
     var box = document.getElementById('prices');
     LEVELS.forEach(function(l){
       var card = el('div', { 'class':'fixed-price', 'data-l':l.id });
-      card.appendChild(el('span', { 'class':'fp-label' }, 'Vaga ' + l.name));
+      card.appendChild(el('span', { 'class':'fp-label' }, 'Slot ' + l.name));
       card.appendChild(el('span', { 'class':'fp-value', id:'price-' + l.id }, brl.format(PRICES[l.id])));
       box.appendChild(card);
     });
@@ -401,7 +409,7 @@
       var s = el('span'); s.style.width = (c[l.id] / MAX * 100) + '%'; s.style.background = l.color;
       bar.appendChild(s);
     });
-    bar.setAttribute('aria-label', total + ' de 14 vagas usadas');
+    bar.setAttribute('aria-label', total + ' de 14 slots usados');
     document.getElementById('usedSlots').textContent = total;
     document.getElementById('freeSlots').textContent = total >= MAX ? 'Oferta completa' : (MAX - total) + ' livres';
   }
@@ -413,13 +421,13 @@
       var mine = state.slots.filter(function(s){ return s.level === l.id; });
       if (!mine.length) return;
       var g = el('div', { 'class':'slot-group' });
-      var h = el('h3', null, l.name + ' · ' + mine.length + (mine.length > 1 ? ' vagas' : ' vaga')); h.style.color = l.color;
+      var h = el('h3', null, l.name + ' · ' + mine.length + (mine.length > 1 ? ' slots' : ' slot')); h.style.color = l.color;
       g.appendChild(h);
       var grid = el('div', { 'class':'slots' });
       mine.forEach(function(s, i){
         var card = el('div', { 'class':'slot', 'data-l':l.id });
         var sid = 'slot-' + l.id + '-' + i;
-        var sel = el('select', { id:sid, 'aria-label':'Categoria da vaga ' + l.name + ' ' + (i + 1) });
+        var sel = el('select', { id:sid, 'aria-label':'Categoria do slot ' + l.name + ' ' + (i + 1) });
         CATS.forEach(function(c){
           var o = el('option', { value:c.id }, c.name);
           if (c.id === s.cat) o.selected = true;
@@ -450,14 +458,10 @@
     var r = calc();
     document.getElementById('combo').textContent = comboText(r.c);
     document.getElementById('comboSub').textContent = state.slots.length + ' de 14 categorias · troca mensal dentro do nível';
-    if (r.missing.length){
-      setVal('pUser', 'Falta preço: ' + r.missing.join(', '), true);
-      setVal('pMonth', '—', true); setVal('pYear', '—', true);
-    } else {
-      setVal('pUser', brl.format(r.perUser) + (r.desc ? ' (−' + int.format(r.desc) + '%)' : ''));
-      if (isNaN(r.base) || !r.base){ setVal('pMonth', 'Informe a base', true); setVal('pYear', '—', true); }
-      else { setVal('pMonth', brl.format(r.perUser * r.base)); setVal('pYear', brl.format(r.perUser * r.base * 12)); }
-    }
+    setVal('pFace', brl.format(r.face));
+    setVal('pSale', brl.format(r.sale));
+    if (!r.base){ setVal('pTotal', 'Informe a base', true); setVal('pDisc', 'Informe a base', true); }
+    else { setVal('pTotal', brl.format(r.total)); setVal('pDisc', brl.format(r.totalDisc)); }
     setVal('titles', r.lo === r.hi ? int.format(r.lo) : int.format(r.lo) + ' a ' + int.format(r.hi));
     setVal('news', r.news.length ? String(r.news.length) : 'Nenhum', !r.news.length);
   }
@@ -469,8 +473,8 @@
       tr0.appendChild(td0); t.appendChild(tr0); return;
     }
     var head = el('tr');
-    ['Oferta','Vagas','Preço/assinante','Receita mensal','Títulos',''].forEach(function(h, i){
-      head.appendChild(el('th', (i >= 2 && i <= 4) ? { 'class':'r' } : null, h));
+    ['Oferta','Slots','Face/assinante','Venda/assinante','Receita c/ desconto','Títulos',''].forEach(function(h, i){
+      head.appendChild(el('th', (i >= 2 && i <= 5) ? { 'class':'r' } : null, h));
     });
     var thead = el('thead'); thead.appendChild(head); t.appendChild(thead);
     var tb = el('tbody');
@@ -478,8 +482,9 @@
       var tr = el('tr');
       tr.appendChild(el('td', null, s.combo));
       tr.appendChild(el('td', { 'class':'num' }, s.n + '/14'));
-      tr.appendChild(el('td', { 'class':'r' }, s.perUser === null ? '—' : brl.format(s.perUser)));
-      tr.appendChild(el('td', { 'class':'r' }, s.month === null ? '—' : brl.format(s.month)));
+      tr.appendChild(el('td', { 'class':'r' }, brl.format(s.face)));
+      tr.appendChild(el('td', { 'class':'r' }, brl.format(s.sale) + (s.desc ? ' (−' + int.format(s.desc) + '%)' : '')));
+      tr.appendChild(el('td', { 'class':'r' }, s.base ? brl.format(s.totalDisc) : '—'));
       tr.appendChild(el('td', { 'class':'r' }, s.titles));
       var td = el('td'); var x = el('button', { type:'button', 'class':'x' }, 'Remover');
       x.addEventListener('click', function(){ state.saved.splice(i,1); persist(); renderSaved(); });
@@ -494,19 +499,22 @@
   function summaryText(){
     var r = calc(), lines = [];
     lines.push('AYA News 2027 · Proposta de oferta');
-    lines.push('Vagas: ' + comboText(r.c) + ' (' + state.slots.length + ' de 14 categorias)');
+    lines.push('Slots: ' + comboText(r.c) + ' (' + state.slots.length + ' de 14 categorias)');
     lines.push('Categorias de entrada:');
     LEVELS.slice().reverse().forEach(function(l){
       var cs = state.slots.filter(function(s){ return s.level === l.id; }).map(function(s){ return CAT[s.cat].name; });
       if (cs.length) lines.push('  ' + l.name + ': ' + cs.join(', '));
     });
-    if (r.news.length) lines.push('Jornais: ' + r.news.join(', '));
+    lines.push('Valor de face por assinante/mês: ' + brl.format(r.face));
+    lines.push('Valor de venda por assinante/mês: ' + brl.format(r.sale) + (r.desc ? ' (desconto de ' + int.format(r.desc) + '%)' : ''));
+    if (r.base){
+      lines.push('Base de clientes: ' + int.format(r.base));
+      lines.push('Receita total/mês: ' + brl.format(r.total));
+      lines.push('Receita com desconto/mês: ' + brl.format(r.totalDisc));
+    }
     lines.push('Títulos para o assinante: ' + (r.lo === r.hi ? r.lo : r.lo + ' a ' + r.hi));
-    if (!r.missing.length){
-      lines.push('Preço por assinante/mês: ' + brl.format(r.perUser) + (r.desc ? ' (desconto de ' + int.format(r.desc) + '%)' : ''));
-      if (r.base) lines.push('Base: ' + int.format(r.base) + ' assinantes · ' + brl.format(r.perUser * r.base) + '/mês · ' + brl.format(r.perUser * r.base * 12) + '/ano');
-    } else lines.push('Preço: a definir');
-    lines.push('Regras: o assinante pode trocar as categorias uma vez por mês, sempre por outra do mesmo nível. Cada categoria, inclusive jornal, ocupa uma vaga.');
+    if (r.news.length) lines.push('Jornais: ' + r.news.join(', '));
+    lines.push('Regras: o assinante pode trocar as categorias uma vez por mês, sempre por outra do mesmo nível. Cada categoria, inclusive jornal, ocupa um slot.');
     return lines.join('\n');
   }
   function toast(msg){ var t = document.getElementById('toast'); t.textContent = msg; clearTimeout(toast._t); toast._t = setTimeout(function(){ t.textContent = ''; }, 2600); }
@@ -525,18 +533,16 @@
   });
   document.getElementById('saveBtn').addEventListener('click', function(){
     var r = calc();
-    var priced = !r.missing.length;
     state.saved.push({
       combo: comboText(r.c), n: state.slots.length,
-      perUser: priced ? r.perUser : null,
-      month: priced && r.base ? r.perUser * r.base : null,
+      face: r.face, sale: r.sale, desc: r.desc, base: r.base, totalDisc: r.totalDisc,
       titles: r.lo === r.hi ? String(r.lo) : r.lo + '–' + r.hi
     });
     if (state.saved.length > 12) state.saved.shift();
     persist(); renderSaved(); toast('Oferta salva para comparação.');
   });
   document.getElementById('resetBtn').addEventListener('click', function(){
-    applyCounts({ bronze:1, prata:0, ouro:0, diamante:0 }); toast('Oferta reiniciada com 1 vaga Bronze.');
+    applyCounts({ bronze:1, prata:0, ouro:0, diamante:0 }); toast('Oferta reiniciada com 1 slot Bronze.');
   });
 
   // ---------- Início: exemplo 4 Prata + 2 Ouro ----------
