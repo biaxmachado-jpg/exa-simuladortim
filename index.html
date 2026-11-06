@@ -82,6 +82,8 @@
   .fp-value{ font:700 18px var(--display); font-variant-numeric:tabular-nums; }
   .row2{ display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:10px; margin-top:12px; }
   @media (max-width:480px){ .row2{ grid-template-columns:minmax(0,1fr); } }
+  .row3{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-top:12px; }
+  @media (max-width:640px){ .row3{ grid-template-columns:minmax(0,1fr); } }
 
   /* Slots / categorias */
   .slot-group{ margin-top:14px; }
@@ -166,13 +168,16 @@
 
       <section class="card" aria-labelledby="h-venda">
         <h2 id="h-venda">4. Valor de venda</h2>
-        <p class="hint">Informe a base de clientes e o desconto negociado. O valor de venda é o valor de face com o desconto aplicado.</p>
-        <div class="row2">
+        <p class="hint">Informe a base de clientes e o desconto <b>ou</b> o valor de venda por assinante. Os dois campos são ligados: ao digitar um, o outro é calculado a partir do valor de face.</p>
+        <div class="row3">
           <label class="field" for="base">Base de clientes
             <span class="money"><input id="base" inputmode="numeric" placeholder="ex.: 100.000" autocomplete="off"></span>
           </label>
           <label class="field" for="desc">Desconto (%)
             <span class="money"><input id="desc" inputmode="decimal" placeholder="0" autocomplete="off"><span>%</span></span>
+          </label>
+          <label class="field" for="sale">Valor de venda por assinante / mês
+            <span class="money"><span>R$</span><input id="sale" inputmode="decimal" placeholder="0,00" autocomplete="off"></span>
           </label>
         </div>
       </section>
@@ -257,13 +262,15 @@
   // Valor de face fixo por slot (R$ por assinante/mês). Alterar somente aqui, no código.
   var PRICES = Object.freeze({ bronze:5, prata:10, ouro:16, diamante:23 });
   function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch(e){ return {}; } }
-  function persist(){ try { localStorage.setItem(KEY, JSON.stringify({ base:state.base, desc:state.desc, saved:state.saved })); } catch(e){} }
+  function persist(){ try { localStorage.setItem(KEY, JSON.stringify({ base:state.base, desc:state.desc, sale:state.sale, mode:state.mode, saved:state.saved })); } catch(e){} }
 
   var stored = load();
   var state = {
     slots: [],                       // [{ level, cat }]
     base: stored.base || '',
     desc: stored.desc || '',
+    sale: stored.sale || '',
+    mode: stored.mode === 'sale' ? 'sale' : 'desc',   // último campo digitado: desconto ou valor de venda
     saved: Array.isArray(stored.saved) ? stored.saved : []
   };
 
@@ -345,8 +352,14 @@
   function calc(){
     var c = counts(), face = 0;
     LEVELS.forEach(function(l){ face += PRICES[l.id] * c[l.id]; });
-    var d = parseNum(state.desc); if (isNaN(d)) d = 0; d = Math.min(d, 100);
-    var sale = face * (1 - d / 100);
+    var d, sale, typed = parseNum(state.sale);
+    if (state.mode === 'sale' && !isNaN(typed)){
+      sale = typed;
+      d = face ? (1 - sale / face) * 100 : 0;          // negativo = venda acima do valor de face
+    } else {
+      d = parseNum(state.desc); if (isNaN(d)) d = 0; d = Math.min(d, 100);
+      sale = face * (1 - d / 100);
+    }
     var base = parseNum(state.base); if (isNaN(base)) base = 0;
     var lo = 0, hi = 0, news = [];
     state.slots.forEach(function(s){
@@ -393,7 +406,9 @@
     var base = document.getElementById('base'), desc = document.getElementById('desc');
     base.value = state.base; desc.value = state.desc;
     base.addEventListener('input', function(){ state.base = base.value.slice(0,20); persist(); renderSummary(); });
-    desc.addEventListener('input', function(){ state.desc = desc.value.slice(0,6); persist(); renderSummary(); });
+    var sale = document.getElementById('sale'); sale.value = state.sale;
+    desc.addEventListener('input', function(){ state.desc = desc.value.slice(0,6); state.mode = 'desc'; persist(); renderSummary(); });
+    sale.addEventListener('input', function(){ state.sale = sale.value.slice(0,20); state.mode = 'sale'; persist(); renderSummary(); });
   }
 
   function renderSteppers(){
@@ -454,8 +469,27 @@
     var e = document.getElementById(id); e.textContent = text;
     e.classList.toggle('pending', !!pending);
   }
+  var pct = new Intl.NumberFormat('pt-BR', { maximumFractionDigits:2 });
+  var money2 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits:2, maximumFractionDigits:2 });
+  function discTag(d, long){
+    if (!d || Math.abs(d) < 0.005) return '';
+    if (d > 0) return long ? ' (desconto de ' + pct.format(d) + '%)' : ' (−' + pct.format(d) + '%)';
+    return long ? ' (' + pct.format(-d) + '% acima do valor de face)' : ' (+' + pct.format(-d) + '%)';
+  }
+  function syncSaleFields(r){
+    var desc = document.getElementById('desc'), sale = document.getElementById('sale');
+    if (!desc || !sale) return;
+    if (state.mode === 'sale'){
+      var v = isNaN(parseNum(state.sale)) ? '' : pct.format(r.desc);
+      if (document.activeElement !== desc){ desc.value = v; state.desc = v; }
+    } else {
+      var w = money2.format(r.sale);
+      if (document.activeElement !== sale){ sale.value = w; state.sale = w; }
+    }
+  }
   function renderSummary(){
     var r = calc();
+    syncSaleFields(r);
     document.getElementById('combo').textContent = comboText(r.c);
     document.getElementById('comboSub').textContent = state.slots.length + ' de 14 categorias · troca mensal dentro do nível';
     setVal('pFace', brl.format(r.face));
@@ -483,7 +517,7 @@
       tr.appendChild(el('td', null, s.combo));
       tr.appendChild(el('td', { 'class':'num' }, s.n + '/14'));
       tr.appendChild(el('td', { 'class':'r' }, brl.format(s.face)));
-      tr.appendChild(el('td', { 'class':'r' }, brl.format(s.sale) + (s.desc ? ' (−' + int.format(s.desc) + '%)' : '')));
+      tr.appendChild(el('td', { 'class':'r' }, brl.format(s.sale) + discTag(s.desc)));
       tr.appendChild(el('td', { 'class':'r' }, s.base ? brl.format(s.totalDisc) : '—'));
       tr.appendChild(el('td', { 'class':'r' }, s.titles));
       var td = el('td'); var x = el('button', { type:'button', 'class':'x' }, 'Remover');
@@ -506,7 +540,7 @@
       if (cs.length) lines.push('  ' + l.name + ': ' + cs.join(', '));
     });
     lines.push('Valor de face por assinante/mês: ' + brl.format(r.face));
-    lines.push('Valor de venda por assinante/mês: ' + brl.format(r.sale) + (r.desc ? ' (desconto de ' + int.format(r.desc) + '%)' : ''));
+    lines.push('Valor de venda por assinante/mês: ' + brl.format(r.sale) + discTag(r.desc, true));
     if (r.base){
       lines.push('Base de clientes: ' + int.format(r.base));
       lines.push('Receita total/mês: ' + brl.format(r.total));
